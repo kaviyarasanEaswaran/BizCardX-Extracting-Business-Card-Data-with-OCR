@@ -1,3 +1,4 @@
+#------------------REQUIRED LIBRARIES---------------------#
 import pandas as pd
 import streamlit as st
 from streamlit_option_menu import option_menu
@@ -15,18 +16,12 @@ conn=psycopg2.connect(host = "localhost",
                       port = 5432,
                       database = "bizcardx")
 mycursor = conn.cursor()
-conn.commit()
+conn.commit() # the connection is not auto committed by default, so we must commit to save our changes
 
 # -----------INITIALIZING THE EasyOCR READER----------------#
 reader = easyocr.Reader(['en'])    
 
-#page congiguration
-st.set_page_config(page_title= "BizCardX",
-                   page_icon= 'random',
-                   layout= "wide",)
-st.markdown("<h1 style='text-align: center; color: blue;'>BizCardX</h1>", unsafe_allow_html=True)
-
-#=========hide the streamlit main and footer
+#=================HIDE THE STREAMLIT MAIN AND FOOTER===============#
 hide_default_format = """
        <style>
        #MainMenu {visibility: hidden; }
@@ -35,15 +30,13 @@ hide_default_format = """
        """
 st.markdown(hide_default_format, unsafe_allow_html=True)   
 
-#application background
+#==============APPLICATION BACKGROUND==============#
 def app_bg():
     st.markdown(""" <style>.stApp {{
                         background: url("https://cdn.wallpapersafari.com/7/90/BFUQb1.jpg");
                         background-size: cover}}
                      </style>""",unsafe_allow_html=True)
 app_bg()
-
-
 
 #-------------------------- TABLE CREATION------------------#
 mycursor.execute('''CREATE TABLE IF NOT EXISTS card_details
@@ -83,13 +76,13 @@ if selected == "\U0001F3E0 Home":
             st.subheader(":orange[Technologies Used:] EasyOCR, Python, SQL, Streamlit")
             st.subheader(":orange[Contact Details:]")
         st.subheader((":orange[>>Linkedin page:] https://www.linkedin.com/in/kaviyarasan-e-906826180/"))
-        st.subheader((":orange[>>Github repository:]  https://github.com/kaviyarasanEaswaran/Phonepe-Pulse-Data-Visualization-and-Exploration-/tree/63adabe2d10d7faa4fc4f1ed7fde5899f9e95c98"))
-
-    
-    
+        st.subheader((":orange[>>Github repository:]  https://github.com/kaviyarasanEaswaran/BizCardX-Extracting-Business-Card-Data-with-OCR/tree/75bcd53a2f8d616e61988d1d098d96f0e174e860"))
+   
 # ------------------UPLOAD AND EXTRACT MENU------------------#
 if selected == "\U0001F4E5 Upload & Extract":
     tab1,tab2 = st.tabs(["Predefined Text","Undefined text"])
+
+# ------------------PRE-DEFINED TEXT------------------#
     with tab1:
         #st.image(Image.open(r"D:\Data Science\BizCardX Extracting Business Card Data with OCR\Creative Modern Business Card\2.png"))
         uploaded_card = st.file_uploader("upload here",label_visibility="collapsed",type=["png","jpeg","jpg"])
@@ -123,35 +116,29 @@ if selected == "\U0001F4E5 Upload & Extract":
                 st.markdown("### You have uploaded the card")
                 st.image(uploaded_card)
             
-        
-                #..... DISPLAYING THE CARD WITH HIGHLIGHTS....#
-                with col2:
-                    st.markdown("#     ")
-                    st.markdown("#     ")
-                    with st.spinner("Please wait processing image..."):
-                        st.set_option('deprecation.showPyplotGlobalUse', False)
-                        #saved_img = os.getcwd()+ "\\" + "uploaded_cards"+ "\\"+ uploaded_card.name
-                        saved_img = r"D:\Data Science\BizCardX Extracting Business Card Data with OCR\Uploaded_cards\\" + uploaded_card.name
-                        image = cv2.imread(saved_img)
-                        res = reader.readtext(saved_img)
-                        st.markdown("### Image Processed and Data Extracted")
-                        st.pyplot(image_preview(image,res))  
-                    
-                 
-    
+            #..... DISPLAYING THE CARD WITH HIGHLIGHTS....#
+            with col2:
+                st.markdown("#     ")
+                st.markdown("#     ")
+                with st.spinner("Please wait processing image..."):
+                    st.set_option('deprecation.showPyplotGlobalUse', False)
+                    #saved_img = os.getcwd()+ "\\" + "uploaded_cards"+ "\\"+ uploaded_card.name
+                    saved_img = r"D:\Data Science\BizCardX Extracting Business Card Data with OCR\Uploaded_cards\\" + uploaded_card.name
+                    image = cv2.imread(saved_img)
+                    res = reader.readtext(saved_img)
+                    st.markdown("### Image Processed and Data Extracted")
+                    st.pyplot(image_preview(image,res))  
             saved_img = r"D:\Data Science\BizCardX Extracting Business Card Data with OCR\Uploaded_cards\\" + uploaded_card.name
-    
             result = reader.readtext(saved_img,detail = 0,paragraph=False)
             
-            
-    
             # CONVERTING IMAGE TO BINARY TO UPLOAD TO SQL DATABASE
             def img_to_binary(file):
                 # Convert image data to binary format
                 with open(file, 'rb') as file:
                     binaryData = file.read()
                 return binaryData
-                
+            
+#====================FUNTION FOR PREDEFINED EXTRACTION OF TEXT===========#              
             data = {"company_name" : [],
                 "card_holder" : [],
                 "designation" : [],
@@ -163,7 +150,7 @@ if selected == "\U0001F4E5 Upload & Extract":
                 "state" : [],
                 "pin_code" : [],
                 "image" : img_to_binary(saved_img)
-               }
+                }
             
             def get_data(res):
                  for index, i in enumerate(res):
@@ -225,10 +212,10 @@ if selected == "\U0001F4E5 Upload & Extract":
                         data["pin_code"].append(i)
                     elif re.findall('[a-zA-Z]{9} +[0-9]', i):
                         data["pin_code"].append(i[10:])
-                               
             get_data(result)
           
             cola,colb = st.columns([3,1])
+#=============CONVERT TO DATAFRAME========#
             with cola:
                 #FUNCTION TO CREATE DATAFRAME
                 def create_df(data):
@@ -237,30 +224,31 @@ if selected == "\U0001F4E5 Upload & Extract":
                 df = create_df(data)
                 st.success("### Data Extracted Successfully!!!")
                 st.write(df)
-            
+
+#==========CHECK THE DUPLICATE DATA IF ALREADY EXISTS IN DATABASE======#
                 try:
                     if st.button("Upload to Database"):
-                     name=data["card_holder"][0]
+                     name=data["card_holder"][0]  #this is input cardholder
                      query =f"select * from card_details where card_holder= '{name}'"
                      mycursor.execute(query)
                      result = mycursor.fetchall()
-                     z=result[0][2]
-                     if name == z :
+                     z=result[0][2] #this is database cardholder
+                     if name == z : # if the condition is true, then we can consider it is duplicard card
                          st.warning("Duplicate card Details, Data Already Exists in Database")
                     else:
                          pass
                 except:
                     for i,row in df.iterrows():
                         #here %S means string values 
-                        sql = """
-                                INSERT INTO card_details (company_name,card_holder,designation,mobile_number,email,website,area,city,state,pin_code,image)
-                                 VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
-                                """
+                        sql = """INSERT INTO card_details (company_name,card_holder,designation,mobile_number,
+                                                          email,website,area,city,state,pin_code,image)
+                                                          VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) """
                         mycursor.execute(sql, tuple(row))
                         # the connection is not auto committed by default, so we must commit to save our changes
                         conn.commit()
                     st.success("#### Successfully uploaded to database!!!")
 
+#=================CONVERT TO LINE FORMAT ========#
             with colb:
                 with st.expander("Details",expanded=True):
                     data1 = [value[0] for  value in data.values()]
@@ -276,7 +264,7 @@ if selected == "\U0001F4E5 Upload & Extract":
                     st.write('###### :green[State]        :', data1[8])
                     st.write('###### :green[Pincode]      :', data1[9])
                     
-          
+#=============UNDEFINED TEXT EXTRACTION===========#          
     with tab2:
         uploaded_card = st.file_uploader("Upload here",label_visibility="collapsed",type=["png","jpeg","jpg"])
         if uploaded_card is not None:
@@ -309,36 +297,31 @@ if selected == "\U0001F4E5 Upload & Extract":
                 st.image(uploaded_card)
             
         
-                #..... DISPLAYING THE CARD WITH HIGHLIGHTS....#
-                with col2:
-                    st.markdown("#     ")
-                    st.markdown("#     ")
-                    with st.spinner("Please wait processing image..."):
-                        st.set_option('deprecation.showPyplotGlobalUse', False)
-                        #saved_img = os.getcwd()+ "\\" + "uploaded_cards"+ "\\"+ uploaded_card.name
-                        saved_img = r"D:\Data Science\BizCardX Extracting Business Card Data with OCR\Uploaded_cards\\" + uploaded_card.name
-                        image = cv2.imread(saved_img)
-                        res = reader.readtext(saved_img)
-                        st.markdown("### Image Processed and Data Extracted")
-                        st.pyplot(image_preview(image,res))  
-                    
-                 
-    
+            #..... DISPLAYING THE CARD WITH HIGHLIGHTS....#
+            with col2:
+                st.markdown("#     ")
+                st.markdown("#     ")
+                with st.spinner("Please wait processing image..."):
+                    st.set_option('deprecation.showPyplotGlobalUse', False)
+                    #saved_img = os.getcwd()+ "\\" + "uploaded_cards"+ "\\"+ uploaded_card.name
+                    saved_img = r"D:\Data Science\BizCardX Extracting Business Card Data with OCR\Uploaded_cards\\" + uploaded_card.name
+                    image = cv2.imread(saved_img)
+                    res = reader.readtext(saved_img)
+                    st.markdown("### Image Processed and Data Extracted")
+                    st.pyplot(image_preview(image,res))
             saved_img = r"D:\Data Science\BizCardX Extracting Business Card Data with OCR\Uploaded_cards\\" + uploaded_card.name
-    
-            result = reader.readtext(saved_img,detail = 0,paragraph=True)
-            
+            result = reader.readtext(saved_img,detail = 0,paragraph=True) 
             with st.expander("Details",expanded=True):
-                st.write('###### :green[Extracted Text]         :', result)
+                st.write('###### :green[Extracted Text]         :', result) #to show the extracted data
             
-
-
 # ------------------------MODIFY MENU--------------------#
 if selected == "\U0001F5D1 Modify or Delete":
     col1,col2,col3 = st.columns([3,3,2])
     st.title("Alter the data here")
     column1,column2 = st.columns(2,gap="large")
-    try:
+
+#===========ALTER DATA FROME THE DATABASE================#
+    try: #if there is no data in that condition except will work
         with column1:
             decription = ['company_name','card_holder','designation','mobile_number','email','website','area','city','state','pin_code']
             dropdown = st.selectbox("Select the Description",decription)
@@ -350,7 +333,7 @@ if selected == "\U0001F5D1 Modify or Delete":
                 business_cards[row[0]] = row[0]
             selected_card = st.selectbox(f"### Select the :green[**{dropdown}'s**]", list(business_cards.keys()))
             st.markdown("#### Update or modify any data below")
-            mycursor.execute(f"select company_name,card_holder,designation,mobile_number,email,website,area,city,state,pin_code from card_details WHERE '{selected_card}'=%s",
+            mycursor.execute(f"select company_name,card_holder,designation,mobile_number,email,website,area,city,state,pin_code from card_details WHERE {dropdown} =%s",
                             (selected_card,))
             result = mycursor.fetchone()
             
@@ -361,13 +344,10 @@ if selected == "\U0001F5D1 Modify or Delete":
                 input[type="text"] {
                     color: green;
                 }
-                input[type="text"][data-bk-color="yellow"] {
-                    color: yellow;
-                }
                 </style>
                 """,
                 unsafe_allow_html=True,
-            )
+                )
             # Create the text input fields and set their values
             company_name = st.text_input("Company_Name", result[0])
             card_holder = st.text_input("Card_Holder", result[1])
@@ -391,6 +371,7 @@ if selected == "\U0001F5D1 Modify or Delete":
                 updated_df = pd.DataFrame(mycursor.fetchall(),columns=["Company_Name","Card_Holder","Designation","Mobile_Number","Email","Website","Area","City","State","Pin_Code"])
                 st.write(updated_df)
 
+#===========DELETE DATA FROM THE DATABSE================#
         with column2:
             st.title("Delete the data here")
             decription1 = ['company_name','card_holder','designation','mobile_number','email','website','area','city','state','pin_code']
@@ -416,22 +397,3 @@ if selected == "\U0001F5D1 Modify or Delete":
     except :
         st.warning("There is no data available in the database")
     
-            
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    
-     
-   
